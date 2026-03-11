@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Pool Aim Assistant</string>
+    <string name="overlay_intro">Pool geometry overlay assistant</string>
+    <string name="start_overlay">Start Overlay</string>
+    <string name="menu_title">Aim Assist Menu</string>
+    <string name="menu_hint">Adjust aim, reflection count, and calibration.</string>
+</resources>
