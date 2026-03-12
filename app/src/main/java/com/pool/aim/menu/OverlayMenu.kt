@@ -15,7 +15,6 @@ class OverlayMenu(context: Context) : FrameLayout(context) {
         alpha = 0.95f
 
         val editButton = findViewById<Button>(R.id.btnEditMarkers)
-        val hideMenuButton = findViewById<Button>(R.id.btnHideMenu)
 
         editButton.setOnClickListener {
             editModeEnabled = !editModeEnabled
@@ -27,9 +26,6 @@ class OverlayMenu(context: Context) : FrameLayout(context) {
             editModeToggleListener?.invoke(editModeEnabled)
         }
 
-        hideMenuButton.setOnClickListener {
-            visibility = GONE
-        }
     }
 
     fun setOnEditModeToggleListener(listener: (Boolean) -> Unit) {

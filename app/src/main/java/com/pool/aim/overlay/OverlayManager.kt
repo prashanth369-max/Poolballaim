@@ -20,16 +20,12 @@ import com.pool.aim.utils.ScreenUtils
 class OverlayManager(private val context: Context, private val appState: AppState) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-    // Drawing window: full-screen but touch-pass-through.
     private val drawingRoot = FrameLayout(context)
     private val aimView = AimView(context, appState)
 
-    // Control window: small touchable panel for menu + floating button.
     private val controlRoot = FrameLayout(context)
     private val overlayMenu = OverlayMenu(context)
-    private val overlayButton = OverlayButton(context)
 
-    // Edit window: full-screen touch layer shown only when marker edit mode is enabled.
     private val editRoot = FrameLayout(context)
     private val redMarker = MarkerView(context, 0xFFFF4D4D.toInt())
     private val whiteMarker = MarkerView(context, 0xFFFFFFFF.toInt())
@@ -38,14 +34,48 @@ class OverlayManager(private val context: Context, private val appState: AppStat
     private val inputController = InputController()
     private val markerController = MarkerController(appState, redMarker, whiteMarker)
 
+
+    init {
+        tableBoxView.onBoundsChanged = {
+            markerController.updateRed(appState.redMarker.x, appState.redMarker.y)
+            markerController.updateWhite(appState.whiteMarker.x, appState.whiteMarker.y)
+            aimView.invalidate()
+        }
+    }
     private var drawingAttached = false
     private var controlAttached = false
     private var editAttached = false
 
     fun show() {
+        seedTableAndMarkerDefaults()
         setupDrawingWindow()
         setupControlWindow()
         showEditWindow(false)
+    }
+
+    private fun seedTableAndMarkerDefaults() {
+        val dm = context.resources.displayMetrics
+        if (appState.tableBounds.right <= appState.tableBounds.left || appState.tableBounds.bottom <= appState.tableBounds.top) {
+            appState.tableBounds.left = dm.widthPixels * 0.08f
+            appState.tableBounds.right = dm.widthPixels * 0.92f
+            appState.tableBounds.top = dm.heightPixels * 0.20f
+            appState.tableBounds.bottom = dm.heightPixels * 0.72f
+        }
+
+        val centerY = (appState.tableBounds.top + appState.tableBounds.bottom) / 2f
+        appState.redMarker = appState.redMarker.copy(
+            x = appState.redMarker.x.coerceIn(appState.tableBounds.left + 45f, appState.tableBounds.right - 45f),
+            y = appState.redMarker.y.coerceIn(appState.tableBounds.top + 45f, appState.tableBounds.bottom - 45f)
+        )
+        appState.whiteMarker = appState.whiteMarker.copy(
+            x = appState.whiteMarker.x.coerceIn(appState.tableBounds.left + 45f, appState.tableBounds.right - 45f),
+            y = appState.whiteMarker.y.coerceIn(appState.tableBounds.top + 45f, appState.tableBounds.bottom - 45f)
+        )
+
+        if (appState.redMarker.x == appState.whiteMarker.x && appState.redMarker.y == appState.whiteMarker.y) {
+            appState.redMarker = appState.redMarker.copy(x = appState.tableBounds.left + 120f, y = centerY)
+            appState.whiteMarker = appState.whiteMarker.copy(x = appState.tableBounds.left + 260f, y = centerY)
+        }
     }
 
     private fun setupDrawingWindow() {
@@ -83,19 +113,9 @@ class OverlayManager(private val context: Context, private val appState: AppStat
             marginEnd = ScreenUtils.dp(context, 16f).toInt()
         }
 
-        val buttonSize = ScreenUtils.dp(context, 56f).toInt()
-        val buttonParams = FrameLayout.LayoutParams(buttonSize, buttonSize, Gravity.TOP or Gravity.START).apply {
-            topMargin = ScreenUtils.dp(context, 16f).toInt()
-            marginStart = ScreenUtils.dp(context, 16f).toInt()
-        }
-
         controlRoot.addView(overlayMenu, menuParams)
-        controlRoot.addView(overlayButton, buttonParams)
-
-        overlayMenu.visibility = View.GONE
-        overlayButton.setOnClickListener {
-            overlayMenu.visibility = if (overlayMenu.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }
+        // Keep menu visible by default so users can discover controls immediately.
+        overlayMenu.visibility = View.VISIBLE
 
         overlayMenu.setOnEditModeToggleListener { enabled ->
             showEditWindow(enabled)
@@ -103,9 +123,10 @@ class OverlayManager(private val context: Context, private val appState: AppStat
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             windowType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
